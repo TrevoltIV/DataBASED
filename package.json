@@ -1,12 +1,12 @@
 {
   "name": "databased",
   "version": "1.0.0",
-  "description": "",
+  "description": "An open source database library that runs on your own server.",
   "main": "./src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author": "TrevoltIV",
   "license": "ISC"
 }
