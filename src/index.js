@@ -59,8 +59,8 @@ async function query(dbName, colName, condition, limit) {
     } catch (err) {
         if (err.code === 'ENOENT') {
             const errorMessage = err.message.includes(dbName) ?
-                `Database '${dbName}' not found. Create a database folder in 'node_modules/DataBASED/databases'.` :
-                `Collection '${colName}' not found. Create a collection folder in 'node_modules/DataBASED/databases/${dbName}/collections'.`
+                `DataBASED Query Error: Database '${dbName}' not found. Create a database folder in './databases'.` :
+                `DataBASED Query Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
 
             throw new Error(errorMessage)
         } else {
@@ -90,7 +90,7 @@ function checkWhereCondition(doc, condition) {
         case '>=':
             return doc.value >= value
         default:
-            throw new Error(`DataBASED Query Error: Unsupported operator: ${operator}.`)
+            throw new Error(`DataBASED Query Error: Unsupported operator '${operator}' in where().`)
     }
 }
 
@@ -109,7 +109,7 @@ function limit(int) {
         return int
     }
 
-    throw new Error(`DataBASED Query Error: Invalid data type for limit() argument. Argument must be a number.`)
+    throw new Error(`DataBASED Limit Error: Invalid data type for limit() argument. Argument must be a number.`)
 }
 
 // getDoc()
@@ -137,9 +137,9 @@ async function getDoc(dbName, colName, docName) {
             if (err.path.endsWith(docName + '.json')) {
                 return { exists: () => { return false } }
             } else if (err.path.endsWith(dbName)) {
-                errorMsg = `Database '${dbName}' not found. Create a database folder in 'node_modules/DataBASED/databases'. ${err.message}`
+                errorMsg = `DataBASED Retrieval Error: Database '${dbName}' not found. Create a database folder in './databases'.`
             } else if (err.path.endsWith(colName)) {
-                errorMsg = `Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
+                errorMsg = `DataBASED Retrieval Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
             }
 
             if (errorMsg) {
@@ -168,9 +168,9 @@ async function setDoc(dbName, colName, docName, doc) {
             let errorMsg = ''
     
             if (err.path.endsWith(dbName)) {
-                errorMsg = `Database '${dbName}' not found. Create a database folder in 'node_modules/DataBASED/databases'. ${err.message}`
+                errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database folder in './databases'.`
             } else if (err.path.endsWith(colName)) {
-                errorMsg = `Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
+                errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
             } else if (err.path.endsWith('documents')) {
                 try {
                     await fs.mkdir(docsFilePath)
@@ -210,11 +210,11 @@ async function deleteDoc(dbName, colName, docName) {
             let errorMsg = ''
     
             if (err.path.endsWith(dbName)) {
-                errorMsg = `Database '${dbName}' not found. Create a database folder in your databases directory.`
+                errorMsg = `DataBASED Deletion Error: Database '${dbName}' not found. Create a database folder in './databases'.`
             } else if (err.path.endsWith(colName)) {
-                errorMsg = `Collection '${colName}' not found in DB '${dbName}'. Create a collection folder in './databases/${dbName}/collections'.`
+                errorMsg = `DataBASED Deletion Error: Collection '${colName}' not found in DB '${dbName}'. Create a collection folder in './databases/${dbName}/collections'.`
             } else if (err.path.endsWith('documents')) {
-                errorMsg = `Document '${docName}' not found in collection '${colName}' (DB: ${dbName}).`
+                errorMsg = `DataBASED Deletion Error: Document '${docName}' not found in collection '${colName}' (DB: ${dbName}).`
             }
     
             if (errorMsg) {
@@ -252,11 +252,11 @@ async function getCollection(dbName, colName, limit) {
             let errorMsg = ''
     
             if (err.path.endsWith(dbName)) {
-                errorMsg = `DataBASED getCollection() Error: Database '${dbName}' not found. Create a database folder in your databases directory.`
+                errorMsg = `DataBASED Retrieval Error: Database '${dbName}' not found. Create a database folder in your databases directory.`
             } else if (err.path.endsWith(colName)) {
-                errorMsg = `DataBASED getCollection() Error: '${colName}' not found in DB '${dbName}'. Create a collection folder in './databases/${dbName}/collections'.`
+                errorMsg = `DataBASED Retrieval Error: Collection '${colName}' not found in DB '${dbName}'. Create a collection folder in './databases/${dbName}/collections'.`
             } else if (err.path.endsWith('documents')) {
-                errorMsg = `DataBASED getCollection() Error: No documents directory found in collection '${colName}'. Add a doc using setDoc() to create one, or add one manually.`
+                errorMsg = `DataBASED Retrieval Error: No documents directory found in collection '${colName}'. Add a doc using setDoc() to create one, or add one manually.`
             }
     
             if (errorMsg) {

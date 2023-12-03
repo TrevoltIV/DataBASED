@@ -63,7 +63,7 @@ WARNING: setDoc() will not automatically fill in the fields that you leave out w
 ##### deleteDoc()
 The deleteDoc() function takes 3 arguments: databaseName, collectionName, and documentName.
 As the name suggests, it simply deletes the document if it exists in the collection specified.
-If there is no document found, it does nothing.
+If there is no document found, it throws an error.
 
 ##### getCollection()
 The getCollection() function takes 3 arguments: databaseName, collectionName, and limit (optional).

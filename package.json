@@ -6,7 +6,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": ["JSON", "firebase", "database", "open source"],
   "author": "TrevoltIV",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TrevoltIV/DataBASED.git"
+  }
 }
