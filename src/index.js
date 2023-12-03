@@ -295,6 +295,11 @@ async function getCollection(dbName, colName, limit) {
     }
 }
 
+// updateDoc()
+async function updateDoc() {
+    // Edit document by replacing specified fields and leaving the rest. Eliminates the need to use getDoc() before setDoc() if old data is still needed
+}
+
 
 
 
@@ -306,6 +311,7 @@ module.exports = {
     limit,
     getDoc,
     setDoc,
+    updateDoc,
     deleteDoc,
     getCollection,
 }
