@@ -1,6 +1,6 @@
 
 
-## Welcome to DataBASED!
+# Welcome to DataBASED!
 
 DataBASED is a free, open source database library that aims to provide the same ease of use as some services such as Firebase or Supabase, but all on your own server.
 I created this JSON based database system because I felt like API services were the most user-friendly way to interact with a database, however they slow down your project
@@ -9,6 +9,13 @@ And, on top of that, it's free!
 
 If you'd like to donate to support development of DataBASED, you can do so at the link below:
 * no website yet, coming soon!
+
+## ANNOUNCEMENTS
+* The next version (1.0.4) will include a primitive indexing system to improve query response times by a factor of ~5-20x for commonly queried properties such as "username".
+
+## 1.0.3 CHANGE-LOG
+* Added 'updateDoc()' for editing documents without overwriting unspecified fields.
+    Usage: await updateDoc('db', 'col', 'documentName', { fieldToEdit: "only this field will be replaced" })
 
 ### Documentation:
 
@@ -59,6 +66,11 @@ It will either create a new document or overwrite an existing document depending
 The documentObject object should be an object with whatever fields you want to insert.
 
 WARNING: setDoc() will not automatically fill in the fields that you leave out when overwriting a pre-existing document, it will simply overwrite it with the new data.
+
+##### updateDoc()
+The updateDoc() function takes 4 arguments, it is the same as the setDoc() function except it will only overwrite the fields you change.
+You can simply pass in an object that only contains one field, and the rest of the document will remain the same besides that one field,
+which will either be changed or added depending on if it existed prior to calling updateDoc().
 
 ##### deleteDoc()
 The deleteDoc() function takes 3 arguments: databaseName, collectionName, and documentName.

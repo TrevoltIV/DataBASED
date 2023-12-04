@@ -280,13 +280,13 @@ async function getCollection(dbName, colName, limit) {
         let i = 0
 
         const results = await Promise.all(files.map(async fileName => {
-            const filePath = path.join(docsFilePath, fileName)
-            const fileContent = await fs.readFile(filePath, 'utf8')
-            const fileData = JSON.parse(fileContent)
-
             if (typeof limit !== null) {
                 if (i === limit) return {}
             }
+
+            const filePath = path.join(docsFilePath, fileName)
+            const fileContent = await fs.readFile(filePath, 'utf8')
+            const fileData = JSON.parse(fileContent)
 
             i += 1
             return fileData
@@ -303,12 +303,69 @@ async function getCollection(dbName, colName, limit) {
 }
 
 // updateDoc()
-async function updateDoc() {
-    // Edit document by replacing specified fields and leaving the rest. Eliminates the need to use getDoc() before setDoc() if old data is still needed
+async function updateDoc(dbName, colName, docName, doc) {
+    const dbFilePath = path.join(databasesPath, dbName)
+    const colFilePath = path.join(databasesPath, dbName, 'collections', colName)
+    const docsFilePath = path.join(databasesPath, dbName, 'collections', colName, 'documents')
+  
+    try {
+      await fs.stat(dbFilePath)
+      await fs.stat(colFilePath)
+      await fs.stat(docsFilePath)
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            let errorMsg = ''
+    
+            if (err.path.endsWith(dbName)) {
+                errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database folder in './databases'.`
+            } else if (err.path.endsWith(colName)) {
+                errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
+            } else if (err.path.endsWith('documents')) {
+                try {
+                    await fs.mkdir(docsFilePath)
+                } catch (err) {
+                    throw err
+                }
+            }
+    
+            if (errorMsg) {
+                throw new Error(errorMsg)
+            }
+        } else {
+            throw err
+        }
+    }
+
+    const newDocFilePath = path.join(docsFilePath, `${docName}.json`)
+  
+    try {
+        await fs.stat(newDocFilePath)
+
+        const file = await fs.readFile(newDocFilePath)
+        const fileData = JSON.parse(file)
+        const updatedDoc = {
+            ...fileData,
+            ...doc
+        }
+
+        await fs.writeFile(newDocFilePath, JSON.stringify(updatedDoc, null, 2))
+    } catch (err) {
+        if (err.code === 'ENOENT' && err.path.endsWith(`${docName}.json`)) {
+            await fs.writeFile(newDocFilePath, JSON.stringify(doc, null, 2))
+        } else {
+            throw err
+        }
+    }
 }
 
 
+// TODO (1.0.4): Indexing system (target query speed sub-20ms for queries limited to 20)
+// Preferably dynamic property indexing
 
+// TODO (1.0.4): Fix query() not breaking after limit for faster responses
+
+// TODO (later): Add a carrying functionality to updateDoc() which will replace fields of an object or array and leave the other fields.
+// For example: posts[7].comments[4].replies[0] = "test"
 
 
 // EXPORT
