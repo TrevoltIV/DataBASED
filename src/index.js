@@ -2,7 +2,7 @@ const fs = require('fs').promises
 const path = require('path')
 
 const projectDir = process.cwd()
-const databasesPath = path.join(projectDir, `./databases`)
+const databasesPath = path.join(projectDir, `databases`)
 
 
 
@@ -11,6 +11,7 @@ const databasesPath = path.join(projectDir, `./databases`)
 
         Developers:
         * TrevoltIV
+        (AKA Karsten Koerner)
 */
 
 
@@ -58,11 +59,17 @@ async function query(dbName, colName, condition, limit) {
         return results.filter(result => Object.keys(result).length !== 0)
     } catch (err) {
         if (err.code === 'ENOENT') {
-            const errorMessage = err.message.includes(dbName) ?
-                `DataBASED Query Error: Database '${dbName}' not found. Create a database folder in './databases'.` :
-                `DataBASED Query Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
+            let errorMsg = ''
 
-            throw new Error(errorMessage)
+                if (err.path.endsWith(dbName)) {
+                    errorMsg = `DataBASED Query Error: Database '${dbName}' not found. Create a database folder in './databases'.`
+                } else if (err.path.endsWith(colName)) {
+                    errorMsg = `DataBASED Query Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
+                } else if (err.path.endsWith('documents')) {
+                    errorMsg = `DataBASED Query Error: Documents folder not found in collection '${colName}'. Create a documents folder in './databases/${dbName}/collections/${colName}'.`
+                }
+
+            throw new Error(errorMsg)
         } else {
             throw err
         }
