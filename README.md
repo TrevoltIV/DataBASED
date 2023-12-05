@@ -11,32 +11,37 @@ If you'd like to donate to support development of DataBASED, you can do so at th
 * no website yet, coming soon!
 
 ## ANNOUNCEMENTS
-* The next version (1.0.4) will include a primitive indexing system to improve query response times by a factor of ~5-20x for commonly queried properties such as "username".
+* Query response times have been improved for all fields that were not added with updateDoc(). Index support for updateDoc() fields will be added in the next version (1.0.5)
+* The next version will also include 3 more commands, 'backup-database', 'delete-database', and 'delete-collection'.
+* WARNING: If your database receives traffic over 1 write per 100ms, the current indexing system may end up overwriting some data due to the temporary key-creation protocol.
+    As long as your database does not write documents faster than once per 1ms, no data loss should occur. This problem will be fixed in the next version.
 
-## 1.0.3 CHANGE-LOG
-* Added 'updateDoc()' for editing documents without overwriting unspecified fields.
-    Usage: await updateDoc('db', 'col', 'documentName', { fieldToEdit: "only this field will be replaced" })
+## 1.0.4 CHANGE-LOG
+* Added primitive indexing system for improved query response times.
+* Added command-line database/collection creation.
+    To create a database, use: 'npx create-database {database_name}'
+    To create a collection, use: 'npx create-collection {collection_name} {database_name}'
 
 ### Documentation:
 
 
 #### Setup
-To initialize your new project, you need to create a folder called "databases" in your project root directory.
-In this folder, create another folder to make your first database, you can call it whatever you want.
-Then, create another folder called "collections" inside of that folder.
-In the collections folder, you can add folders with whatever name you wish, these will represent your collections.
-If you wish to manually create document files, you will need to create another folder inside the collection you wish, and call it "documents".
-Then create JSON files inside that folder, with whatever name you wish, these will be your documents.
+To create your first database, go to the terminal and use this command:
+npx create-database {database_name}
 
+Then, you can create your first collection within that database using this command:
+npx create-collection {new_collection_name} {database_name}
+
+A new folder called "databased" will be added to your project's root directory. Do not delete or move it.
 You can create as many databases, collections, and documents as you need.
 
-#### Querying
+#### Functions
 
 ##### Query()
 The query() function takes 4 arguments: databaseName, collectionName, condition, and limit.
 All are required except limit.
 
-All main functions are asynchronous, including query().
+All main functions (excluding parameter functions, e.g. limit()) are asynchronous, including query().
 
 Example:
 const query = await query('db1', 'col1', where('Test1', '==', 'test1'), limit(5))

@@ -2,12 +2,12 @@ const fs = require('fs').promises
 const path = require('path')
 
 const projectDir = process.cwd()
-const databasesPath = path.join(projectDir, `databases`)
+const databasesPath = path.join(projectDir, `databased`, 'databases')
 
 
 
 /*
-        DataBASED v1.0.0
+        DataBASED v1.0.4
 
         Developers:
         * TrevoltIV
@@ -17,42 +17,37 @@ const databasesPath = path.join(projectDir, `databases`)
 
 
 
-
+// TODO (1.0.5): Fix error when no documents are found and instead return empty array
 // query()
 async function query(dbName, colName, condition, limit) {
     const dbFilePath = path.join(databasesPath, dbName)
     const colFilePath = path.join(databasesPath, dbName, 'collections', colName)
     const docsFilePath = path.join(databasesPath, dbName, 'collections', colName, 'documents')
+    const indexPath = path.join(projectDir, 'databased', 'indexing', 'databases', dbName, 'collections', colName, `${condition.property}.json`)
 
     try {
         await fs.stat(dbFilePath)
         await fs.stat(colFilePath)
+        await fs.stat(indexPath)
 
-        const files = await fs.readdir(docsFilePath)
+        const file = await fs.readFile(indexPath)
+        const fileData = JSON.parse(file)
+        const keys = Object.keys(fileData)
 
         let i = 0
 
-        const results = await Promise.all(files.map(async fileName => {
-            const filePath = path.join(docsFilePath, fileName)
-            const fileContent = await fs.readFile(filePath, 'utf8')
-            const fileData = JSON.parse(fileContent)
-
+        const results = await Promise.all(keys.map(async (key) => {
             let result = {}
 
-            if (typeof limit !== null) {
+            if (limit) {
                 if (i === limit) return result
             }
 
-            for (let key in fileData) {
-                const val = fileData[key]
-
-                if (checkWhereCondition({property: key, value: val}, condition)) {
-                    result = fileData
-                    i += 1
-                    break
-                }
+            if (checkWhereCondition(fileData[key], condition)) {
+                result = fileData[key]
+                i += 1
+                return result
             }
-
             return result
         }))
 
@@ -62,11 +57,13 @@ async function query(dbName, colName, condition, limit) {
             let errorMsg = ''
 
                 if (err.path.endsWith(dbName)) {
-                    errorMsg = `DataBASED Query Error: Database '${dbName}' not found. Create a database folder in './databases'.`
+                    errorMsg = `DataBASED Query Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'.`
                 } else if (err.path.endsWith(colName)) {
-                    errorMsg = `DataBASED Query Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
+                    errorMsg = `DataBASED Query Error: Collection '${colName}' not found. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
                 } else if (err.path.endsWith('documents')) {
-                    errorMsg = `DataBASED Query Error: Documents folder not found in collection '${colName}'. Create a documents folder in './databases/${dbName}/collections/${colName}'.`
+                    errorMsg = `DataBASED Query Error: No documents exist in collection '${colName}'.`
+                } else if (err.path.endsWith(`${condition.property}.json`)) {
+                    return []
                 }
 
             throw new Error(errorMsg)
@@ -81,7 +78,7 @@ async function query(dbName, colName, condition, limit) {
 function checkWhereCondition(doc, condition) {
     const { property, operator, value } = condition
 
-    if (doc.property !== property) return false
+    if (doc.key !== property) return false
 
     switch (operator) {
         case '==':
@@ -144,9 +141,9 @@ async function getDoc(dbName, colName, docName) {
             if (err.path.endsWith(docName + '.json')) {
                 return { exists: () => { return false } }
             } else if (err.path.endsWith(dbName)) {
-                errorMsg = `DataBASED Retrieval Error: Database '${dbName}' not found. Create a database folder in './databases'.`
+                errorMsg = `DataBASED Retrieval Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'.`
             } else if (err.path.endsWith(colName)) {
-                errorMsg = `DataBASED Retrieval Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
+                errorMsg = `DataBASED Retrieval Error: Collection '${colName}' not found. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
             }
 
             if (errorMsg) {
@@ -175,9 +172,9 @@ async function setDoc(dbName, colName, docName, doc) {
             let errorMsg = ''
     
             if (err.path.endsWith(dbName)) {
-                errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database folder in './databases'.`
+                errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'.`
             } else if (err.path.endsWith(colName)) {
-                errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
+                errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
             } else if (err.path.endsWith('documents')) {
                 try {
                     await fs.mkdir(docsFilePath)
@@ -200,6 +197,40 @@ async function setDoc(dbName, colName, docName, doc) {
     } catch (err) {
       throw err
     }
+
+    const keys = Object.keys(doc)
+
+    // Index properties
+    await Promise.all(keys.map(async (key) => {
+        const indexPath = path.join(projectDir, 'databased', 'indexing', 'databases', dbName, 'collections', colName, `${key}.json`)
+        try {
+            await fs.stat(indexPath)
+
+            const file = await fs.readFile(indexPath)
+            const fileData = JSON.parse(file)
+
+            fileData[Date.now().toString()] = {
+                key: key,
+                value: doc[key],
+                document: docName
+            }
+
+            await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+
+            return
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                const fileData = {
+                    [Date.now().toString()]: {
+                        key: key,
+                        value: doc[key],
+                        document: docName
+                    }
+                }
+                await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+            }
+        }
+    }))
 }
 
 // deleteDoc()
@@ -217,9 +248,9 @@ async function deleteDoc(dbName, colName, docName) {
             let errorMsg = ''
     
             if (err.path.endsWith(dbName)) {
-                errorMsg = `DataBASED Deletion Error: Database '${dbName}' not found. Create a database folder in './databases'.`
+                errorMsg = `DataBASED Deletion Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'.`
             } else if (err.path.endsWith(colName)) {
-                errorMsg = `DataBASED Deletion Error: Collection '${colName}' not found in DB '${dbName}'. Create a collection folder in './databases/${dbName}/collections'.`
+                errorMsg = `DataBASED Deletion Error: Collection '${colName}' not found in DB '${dbName}'. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
             } else if (err.path.endsWith('documents')) {
                 errorMsg = `DataBASED Deletion Error: Document '${docName}' not found in collection '${colName}' (DB: ${dbName}).`
             }
@@ -259,9 +290,9 @@ async function getCollection(dbName, colName, limit) {
             let errorMsg = ''
     
             if (err.path.endsWith(dbName)) {
-                errorMsg = `DataBASED Retrieval Error: Database '${dbName}' not found. Create a database folder in your databases directory.`
+                errorMsg = `DataBASED Retrieval Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'`
             } else if (err.path.endsWith(colName)) {
-                errorMsg = `DataBASED Retrieval Error: Collection '${colName}' not found in DB '${dbName}'. Create a collection folder in './databases/${dbName}/collections'.`
+                errorMsg = `DataBASED Retrieval Error: Collection '${colName}' not found in DB '${dbName}'. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
             } else if (err.path.endsWith('documents')) {
                 errorMsg = `DataBASED Retrieval Error: No documents directory found in collection '${colName}'. Add a doc using setDoc() to create one, or add one manually.`
             }
@@ -317,9 +348,9 @@ async function updateDoc(dbName, colName, docName, doc) {
             let errorMsg = ''
     
             if (err.path.endsWith(dbName)) {
-                errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database folder in './databases'.`
+                errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'.`
             } else if (err.path.endsWith(colName)) {
-                errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection folder in './databases/${dbName}/collections'.`
+                errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
             } else if (err.path.endsWith('documents')) {
                 try {
                     await fs.mkdir(docsFilePath)
@@ -364,7 +395,10 @@ async function updateDoc(dbName, colName, docName, doc) {
 
 // TODO (1.0.4): Fix query() not breaking after limit for faster responses
 
-// TODO (later): Add a carrying functionality to updateDoc() which will replace fields of an object or array and leave the other fields.
+// TODO: (1.0.4): Add "create-database" terminal command for automatically setting up the databases directory
+// Also add "create-collection" command for automatically creating a new collection directory
+
+// TODO (later): Add a carrying functionality to updateDoc() which will replace fields of an object or array and leave the other fields
 // For example: posts[7].comments[4].replies[0] = "test"
 
 
