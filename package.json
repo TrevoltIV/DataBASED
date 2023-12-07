@@ -1,6 +1,6 @@
 {
   "name": "databased",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "An open source database library that runs on your own server.",
   "main": "./src/functions.js",
   "scripts": {

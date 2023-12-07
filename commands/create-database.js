@@ -30,8 +30,12 @@ async function createDatabase(dbName) {
     console.log(`DataBASED create-database Error: Database with name '${dbName}' already exists.`)
   } catch (err) {
     if (err.code === 'ENOENT') {
+      const settingsObj = {
+        backup_path: ""
+      }
 
       await fs.mkdir(databasePath, { recursive: true })
+      await fs.writeFile(path.join(projectDir, 'databased', 'settings.json'), JSON.stringify(settingsObj, null, 2))
       console.log(`DataBASED: New database '${dbName}' successfully created: '${databasePath}'`)
     } else {
       throw err

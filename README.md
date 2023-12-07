@@ -11,16 +11,15 @@ If you'd like to donate to support development of DataBASED, you can do so at th
 * no website yet, coming soon!
 
 ## ANNOUNCEMENTS
-* Query response times have been improved for all fields that were not added with updateDoc(). Index support for updateDoc() fields will be added in the next version (1.0.5)
-* The next version will also include 3 more commands, 'backup-database', 'delete-database', and 'delete-collection'.
 * WARNING: If your database receives traffic over 1 write per 100ms, the current indexing system may end up overwriting some data due to the temporary key-creation protocol.
     As long as your database does not write documents faster than once per 1ms, no data loss should occur. This problem will be fixed in the next version.
 
 ## 1.0.4 CHANGE-LOG
-* Added primitive indexing system for improved query response times.
-* Added command-line database/collection creation.
-    To create a database, use: 'npx create-database {database_name}'
-    To create a collection, use: 'npx create-collection {collection_name} {database_name}'
+* Added new command 'npx backup-database {db_name}'
+    This command copies your database to the desired directory defined in './databased/settings.json'
+* Fixed query() bugs
+* Added indexing support for updateDoc()
+* Fixed bugs related to indexing
 
 ### Documentation:
 
@@ -34,6 +33,9 @@ npx create-collection {new_collection_name} {database_name}
 
 A new folder called "databased" will be added to your project's root directory. Do not delete or move it.
 You can create as many databases, collections, and documents as you need.
+
+If you want to backup your database, you can use 'npx backup-database {db_name}'.
+Just make sure to set the 'backup_path' value in './databased/settings.json' to your desired directory for backups.
 
 #### Functions
 

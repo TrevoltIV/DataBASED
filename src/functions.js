@@ -7,7 +7,7 @@ const databasesPath = path.join(projectDir, `databased`, 'databases')
 
 
 /*
-        DataBASED v1.0.4
+        DataBASED v1.0.5
 
         Developers:
         * TrevoltIV
@@ -17,7 +17,6 @@ const databasesPath = path.join(projectDir, `databased`, 'databases')
 
 
 
-// TODO (1.0.5): Fix error when no documents are found and instead return empty array
 // query()
 async function query(dbName, colName, condition, limit) {
     const dbFilePath = path.join(databasesPath, dbName)
@@ -44,7 +43,11 @@ async function query(dbName, colName, condition, limit) {
             }
 
             if (checkWhereCondition(fileData[key], condition)) {
-                result = fileData[key]
+                const docFilePath = path.join(docsFilePath, `${fileData[key].document}.json`)
+                const docFile = await fs.readFile(docFilePath)
+                const docData = JSON.parse(docFile)
+
+                result = docData
                 i += 1
                 return result
             }
@@ -198,6 +201,110 @@ async function setDoc(dbName, colName, docName, doc) {
       throw err
     }
 
+    const keys = Object.keys(doc);
+
+    // Index properties
+    await Promise.all(keys.map(async (key) => {
+        const indexPath = path.join(projectDir, 'databased', 'indexing', 'databases', dbName, 'collections', colName, `${key}.json`)
+
+        try {
+            await fs.stat(indexPath)
+
+            const file = await fs.readFile(indexPath, 'utf-8')
+            let fileData = {}
+
+            // Check if the file content is not empty before parsing
+            if (file.trim() !== '') {
+                fileData = JSON.parse(file)
+
+                for (let fileKey in fileData) {
+                    if (fileData[fileKey].document === docName) {
+                        delete fileData[fileKey];
+                        await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+                        break
+                    }
+                }
+            }
+
+            fileData[Date.now().toString()] = {
+                key: key,
+                value: doc[key],
+                document: docName
+            }
+
+            await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                const fileData = {
+                    [Date.now().toString()]: {
+                        key: key,
+                        value: doc[key],
+                        document: docName
+                    }
+                }
+                await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+            } else {
+                console.error(`Error processing key ${key}: ${err.message}`)
+            }
+        }
+    }));
+}
+
+// updateDoc()
+async function updateDoc(dbName, colName, docName, doc) {
+    const dbFilePath = path.join(databasesPath, dbName)
+    const colFilePath = path.join(databasesPath, dbName, 'collections', colName)
+    const docsFilePath = path.join(databasesPath, dbName, 'collections', colName, 'documents')
+  
+    try {
+      await fs.stat(dbFilePath)
+      await fs.stat(colFilePath)
+      await fs.stat(docsFilePath)
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            let errorMsg = ''
+    
+            if (err.path.endsWith(dbName)) {
+                errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'.`
+            } else if (err.path.endsWith(colName)) {
+                errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
+            } else if (err.path.endsWith('documents')) {
+                try {
+                    await fs.mkdir(docsFilePath)
+                } catch (err) {
+                    throw err
+                }
+            }
+    
+            if (errorMsg) {
+                throw new Error(errorMsg)
+            }
+        } else {
+            throw err
+        }
+    }
+
+    const newDocFilePath = path.join(docsFilePath, `${docName}.json`)
+  
+    try {
+        await fs.stat(newDocFilePath)
+
+        const file = await fs.readFile(newDocFilePath)
+        const fileData = JSON.parse(file)
+        const updatedDoc = {
+            ...fileData,
+            ...doc
+        }
+
+        await fs.writeFile(newDocFilePath, JSON.stringify(updatedDoc, null, 2))
+    } catch (err) {
+        if (err.code === 'ENOENT' && err.path.endsWith(`${docName}.json`)) {
+            await fs.writeFile(newDocFilePath, JSON.stringify(doc, null, 2))
+        } else {
+            throw err
+        }
+    }
+
     const keys = Object.keys(doc)
 
     // Index properties
@@ -206,8 +313,21 @@ async function setDoc(dbName, colName, docName, doc) {
         try {
             await fs.stat(indexPath)
 
-            const file = await fs.readFile(indexPath)
-            const fileData = JSON.parse(file)
+            const file = await fs.readFile(indexPath, 'utf-8')
+            let fileData = {}
+
+            // Check if the file content is not empty before parsing
+            if (file.trim() !== '') {
+                fileData = JSON.parse(file)
+
+                for (let fileKey in fileData) {
+                    if (fileData[fileKey].document === docName) {
+                        delete fileData[fileKey];
+                        await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+                        break
+                    }
+                }
+            }
 
             fileData[Date.now().toString()] = {
                 key: key,
@@ -220,6 +340,7 @@ async function setDoc(dbName, colName, docName, doc) {
             return
         } catch (err) {
             if (err.code === 'ENOENT') {
+
                 const fileData = {
                     [Date.now().toString()]: {
                         key: key,
@@ -227,8 +348,11 @@ async function setDoc(dbName, colName, docName, doc) {
                         document: docName
                     }
                 }
+
                 await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
             }
+
+            throw err
         }
     }))
 }
@@ -263,8 +387,17 @@ async function deleteDoc(dbName, colName, docName) {
         }
     }
 
+    const docFilePath = path.join(docsFilePath, docName + '.json')
+    const docFile = await fs.readFile(docFilePath, 'utf-8')
+    let doc = {}
+
+    if (docFile.trim() !== '') {
+        doc = JSON.parse(docFile)
+    } else {
+        throw new Error(`DataBASED Deletion Error: Document '${docName}' not found in collection '${colName}'.`)
+    }
+
     try {
-        const docFilePath = path.join(docsFilePath, docName + '.json')
         await fs.unlink(docFilePath)
     } catch (err) {
         if (err.code === 'ENOENT') {
@@ -273,6 +406,40 @@ async function deleteDoc(dbName, colName, docName) {
             throw err
         }
     }
+
+    const keys = Object.keys(doc)
+
+    // Delete index reference
+    await Promise.all(keys.map(async (key) => {
+        const indexPath = path.join(projectDir, 'databased', 'indexing', 'databases', dbName, 'collections', colName, `${key}.json`)
+        try {
+            await fs.stat(indexPath)
+
+            const file = await fs.readFile(indexPath, 'utf-8')
+            let fileData = {}
+
+            // Check if the file content is not empty before parsing
+            if (file.trim() !== '') {
+                fileData = JSON.parse(file)
+
+                for (let fileKey in fileData) {
+                    if (fileData[fileKey].document === docName) {
+                        delete fileData[fileKey];
+                        await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+                        break
+                    }
+                }
+            }
+
+            return
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                throw new Error(`DataBASED Deletion Error: No index reference found for field '${key}' in collection '${colName}'.`)
+            }
+
+            throw err
+        }
+    }))
 }
 
 // getCollection()
@@ -333,70 +500,7 @@ async function getCollection(dbName, colName, limit) {
     }
 }
 
-// updateDoc()
-async function updateDoc(dbName, colName, docName, doc) {
-    const dbFilePath = path.join(databasesPath, dbName)
-    const colFilePath = path.join(databasesPath, dbName, 'collections', colName)
-    const docsFilePath = path.join(databasesPath, dbName, 'collections', colName, 'documents')
-  
-    try {
-      await fs.stat(dbFilePath)
-      await fs.stat(colFilePath)
-      await fs.stat(docsFilePath)
-    } catch (err) {
-        if (err.code === 'ENOENT') {
-            let errorMsg = ''
-    
-            if (err.path.endsWith(dbName)) {
-                errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'.`
-            } else if (err.path.endsWith(colName)) {
-                errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
-            } else if (err.path.endsWith('documents')) {
-                try {
-                    await fs.mkdir(docsFilePath)
-                } catch (err) {
-                    throw err
-                }
-            }
-    
-            if (errorMsg) {
-                throw new Error(errorMsg)
-            }
-        } else {
-            throw err
-        }
-    }
 
-    const newDocFilePath = path.join(docsFilePath, `${docName}.json`)
-  
-    try {
-        await fs.stat(newDocFilePath)
-
-        const file = await fs.readFile(newDocFilePath)
-        const fileData = JSON.parse(file)
-        const updatedDoc = {
-            ...fileData,
-            ...doc
-        }
-
-        await fs.writeFile(newDocFilePath, JSON.stringify(updatedDoc, null, 2))
-    } catch (err) {
-        if (err.code === 'ENOENT' && err.path.endsWith(`${docName}.json`)) {
-            await fs.writeFile(newDocFilePath, JSON.stringify(doc, null, 2))
-        } else {
-            throw err
-        }
-    }
-}
-
-
-// TODO (1.0.4): Indexing system (target query speed sub-20ms for queries limited to 20)
-// Preferably dynamic property indexing
-
-// TODO (1.0.4): Fix query() not breaking after limit for faster responses
-
-// TODO: (1.0.4): Add "create-database" terminal command for automatically setting up the databases directory
-// Also add "create-collection" command for automatically creating a new collection directory
 
 // TODO (later): Add a carrying functionality to updateDoc() which will replace fields of an object or array and leave the other fields
 // For example: posts[7].comments[4].replies[0] = "test"
