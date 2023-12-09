@@ -15,11 +15,7 @@ If you'd like to donate to support development of DataBASED, you can do so at th
     As long as your database does not write documents faster than once per 1ms, no data loss should occur. This problem will be fixed in the next version.
 
 ## 1.0.4 CHANGE-LOG
-* Added new command 'npx backup-database {db_name}'
-    This command copies your database to the desired directory defined in './databased/settings.json'
-* Fixed query() bugs
-* Added indexing support for updateDoc()
-* Fixed bugs related to indexing
+* Fixed setDoc() overwriting bug where indexes would not be deleted for prior-existing documents.
 
 ### Documentation:
 

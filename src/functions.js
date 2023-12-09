@@ -7,7 +7,7 @@ const databasesPath = path.join(projectDir, `databased`, 'databases')
 
 
 /*
-        DataBASED v1.0.5
+        DataBASED v1.0.6
 
         Developers:
         * TrevoltIV
