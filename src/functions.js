@@ -165,89 +165,109 @@ async function setDoc(dbName, colName, docName, doc) {
     const dbFilePath = path.join(databasesPath, dbName)
     const colFilePath = path.join(databasesPath, dbName, 'collections', colName)
     const docsFilePath = path.join(databasesPath, dbName, 'collections', colName, 'documents')
-  
+
     try {
-      await fs.stat(dbFilePath)
-      await fs.stat(colFilePath)
-      await fs.stat(docsFilePath)
-    } catch (err) {
-        if (err.code === 'ENOENT') {
-            let errorMsg = ''
-    
-            if (err.path.endsWith(dbName)) {
-                errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'.`
-            } else if (err.path.endsWith(colName)) {
-                errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
-            } else if (err.path.endsWith('documents')) {
-                try {
-                    await fs.mkdir(docsFilePath)
-                } catch (err) {
-                    throw err
+        const oldDocFilePath = path.join(projectDir, 'databased', 'databases', dbName, 'collections', colName, 'documents', `${docName}.json`)
+        await fs.stat(oldDocFilePath)
+
+        const oldDocFile = await fs.readFile(oldDocFilePath, 'utf-8')
+        const oldDoc = JSON.parse(oldDocFile)
+        const oldDocKeys = Object.keys(oldDoc)
+
+        await Promise.all(oldDocKeys.map(async (key) => {
+            const indexPath = path.join(projectDir, 'databased', 'indexing', 'databases', dbName, 'collections', colName, `${key}.json`)
+            const indexFile = await fs.readFile(indexPath, 'utf-8')
+            const indexData = JSON.parse(indexFile)
+
+            for (let index in indexData) {
+                if (indexData[index].document === docName) {
+                    delete indexData[index]
+                    await fs.writeFile(indexPath, JSON.stringify(indexData, null, 2))
                 }
             }
-    
-            if (errorMsg) {
-                throw new Error(errorMsg)
-            }
-        } else {
-            throw err
-        }
-    }
-  
-    try {
-      const newDocFilePath = path.join(docsFilePath, `${docName}.json`)
-      await fs.writeFile(newDocFilePath, JSON.stringify(doc, null, 2))
+        }))
+
+        const newDocFilePath = path.join(docsFilePath, `${docName}.json`)
+        await fs.writeFile(newDocFilePath, JSON.stringify(doc, null, 2))
     } catch (err) {
-      throw err
+        throw err
     }
 
-    const keys = Object.keys(doc);
-
-    // Index properties
-    await Promise.all(keys.map(async (key) => {
-        const indexPath = path.join(projectDir, 'databased', 'indexing', 'databases', dbName, 'collections', colName, `${key}.json`)
-
-        try {
-            await fs.stat(indexPath)
-
-            const file = await fs.readFile(indexPath, 'utf-8')
-            let fileData = {}
-
-            // Check if the file content is not empty before parsing
-            if (file.trim() !== '') {
-                fileData = JSON.parse(file)
-
-                for (let fileKey in fileData) {
-                    if (fileData[fileKey].document === docName) {
-                        delete fileData[fileKey];
-                        await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
-                        break
-                    }
-                }
-            }
-
-            fileData[Date.now().toString()] = {
-                key: key,
-                value: doc[key],
-                document: docName
-            }
-
-            await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
-        } catch (err) {
-            if (err.code === 'ENOENT') {
-                const fileData = {
-                    [Date.now().toString()]: {
-                        key: key,
-                        value: doc[key],
-                        document: docName
-                    }
-                }
-                await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
-            } else {
-                console.error(`Error processing key ${key}: ${err.message}`)
-            }
-        }
-    }));
+    try {
+        await fs.stat(dbFilePath)
+        await fs.stat(colFilePath)
+        await fs.stat(docsFilePath)
+      } catch (err) {
+          if (err.code === 'ENOENT') {
+              let errorMsg = ''
+      
+              if (err.path.endsWith(dbName)) {
+                  errorMsg = `DataBASED Document Error: Database '${dbName}' not found. Create a database with the command 'npx create-database {database_name}'.`
+              } else if (err.path.endsWith(colName)) {
+                  errorMsg = `DataBASED Document Error: Collection '${colName}' not found. Create a collection with the command 'npx create-collection {collection_name} {database_name}'.`
+              } else if (err.path.endsWith('documents')) {
+                  try {
+                      await fs.mkdir(docsFilePath)
+                  } catch (err) {
+                      throw err
+                  }
+              }
+      
+              if (errorMsg) {
+                  throw new Error(errorMsg)
+              }
+          } else {
+              throw err
+          }
+      }
+  
+      const keys = Object.keys(doc);
+  
+      // Index properties
+      await Promise.all(keys.map(async (key) => {
+          const indexPath = path.join(projectDir, 'databased', 'indexing', 'databases', dbName, 'collections', colName, `${key}.json`)
+  
+          try {
+              await fs.stat(indexPath)
+  
+              const file = await fs.readFile(indexPath, 'utf-8')
+              let fileData = {}
+  
+              // Check if the file content is not empty before parsing
+              if (file.trim() !== '') {
+                  fileData = JSON.parse(file)
+  
+                  for (let fileKey in fileData) {
+                      if (fileData[fileKey].document === docName) {
+                          delete fileData[fileKey];
+                          await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+                          break
+                      }
+                  }
+              }
+  
+              fileData[Date.now().toString()] = {
+                  key: key,
+                  value: doc[key],
+                  document: docName
+              }
+  
+              await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+          } catch (err) {
+              if (err.code === 'ENOENT') {
+                  const fileData = {
+                      [Date.now().toString()]: {
+                          key: key,
+                          value: doc[key],
+                          document: docName
+                      }
+                  }
+                  await fs.writeFile(indexPath, JSON.stringify(fileData, null, 2))
+              } else {
+                  console.error(`Error processing key ${key}: ${err.message}`)
+              }
+          }
+      }))
 }
 
 // updateDoc()
